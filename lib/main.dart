@@ -1,56 +1,67 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
-void main() => runApp(MyApp());
+void main() => runApp(());
 
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-        title: 'Flutter Demo',
-        theme: ThemeData(
-          primarySwatch: Colors.red,
-        ),
-        home: Scaffold(
-          body: MyHomePage(title: 'Flutter Demo Home Page'),
-        ));
-  }
-}
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+class StaggeredAnimation extends StatelessWidget {
 
-  final String title;
+  // Constructor along with animation initialization
+  StaggeredAnimation({Key key, this.controller}):
 
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
+        mouth = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: controller, curve: Interval(0.8, 1.0))),
+        flip = Tween(begin: 0.0, end: 2 * pi).animate(CurvedAnimation(parent: controller, curve: Interval(0.0, 0.4, curve: Curves.bounceIn))),
+        size = Tween(begin: 80.0, end: 120.0).animate(CurvedAnimation(parent: controller, curve: Interval(0.0, 0.4, curve: Curves.bounceIn))),
+        elevation = Tween(begin: 15.0, end: 0.0).animate(CurvedAnimation(parent: controller, curve: Interval(0.5, 0.7, curve: Curves.ease))),
 
-class _MyHomePageState extends State<MyHomePage>
-    with SingleTickerProviderStateMixin<MyHomePage> {
-  AnimationController controller;
-  Animation flipStart;
-  Animation flipFinish;
-  Animation elevationDown;
-  IconData icon = Icons.visibility;
-  double scaleSize = 0;
+        mouthBordersColor = ColorTween(begin: Colors.black12, end: Colors.white30).animate(CurvedAnimation(parent: controller, curve: Interval(0.8, 1.0))),
 
-  @override
-  Widget build(BuildContext context) {
+        eyeColorAUR = ColorTween(begin: Colors.blueAccent, end: Colors.white12).animate(CurvedAnimation(parent: controller, curve: Interval(0.7, 1.0))),
+        eyeColorABL = ColorTween(begin: Colors.cyanAccent, end: Colors.white12).animate(CurvedAnimation(parent: controller, curve: Interval(0.7, 1.0))),
+        eyeColorBUR = ColorTween(begin: Colors.blueAccent, end: Colors.white12).animate(CurvedAnimation(parent: controller,curve: Interval(0.0, 0.5, curve: Curves.bounceIn))),
+        eyeColorBBL = ColorTween(begin: Colors.cyanAccent, end: Colors.blueAccent).animate(CurvedAnimation(parent: controller, curve: Interval(0.0, 0.5))),
+
+        super(key: key);
+
+  // Initialize variables
+  final Animation<double> flip;
+  final Animation<double> size;
+  final Animation<double> mouth;
+  final Animation<double> elevation;
+
+  final AnimationController controller;
+
+  final Animation<Color> eyeColorBUR;
+  final Animation<Color> eyeColorBBL;
+  final Animation<Color> eyeColorAUR;
+  final Animation<Color> eyeColorABL;
+  final Animation<Color> mouthBordersColor;
+
+  final IconData iconVisible = Icons.visibility;
+
+  Widget _buildAnimation(BuildContext context, Widget child) {
     return Stack(children: [
-      Column(
-        children: <Widget>[
-          Container(
-            height: 500 * (1 - controller.value),
-          ),
-          Divider(
-            color: Colors.black,
-          ),
-          Expanded(
-            child: Container(),
-          )
-        ],
-      ),
+      AnimatedBuilder(
+          animation: controller,
+          builder: (context, child) {
+            return Column(children: <Widget>[
+              Expanded(
+                child: SizedBox(),
+              ),
+              SizedBox(
+                child: Container(
+                    decoration: BoxDecoration(
+                      border:
+                      Border.all(width: 1.2, color: mouthBordersColor.value),
+                    )),
+                height: MediaQuery.of(context).size.height * mouth.value,
+              ),
+              Expanded(
+                child: SizedBox(),
+              )
+            ]);
+          }),
       Center(
         child: GestureDetector(
           child: AnimatedBuilder(
@@ -58,16 +69,32 @@ class _MyHomePageState extends State<MyHomePage>
             builder: (context, child) {
               return Transform(
                 alignment: FractionalOffset.center,
-                transform: Matrix4.rotationY(flipStart.value)
-                  ..scale(1 + scaleSize * 0.05),
+                transform: Matrix4.rotationY(flip.value),
                 child: Material(
-                  borderRadius: BorderRadius.all(Radius.circular(50)),
+                  shape: CircleBorder(),
+                  color: Colors.blueAccent[300],
                   shadowColor: Colors.black,
-                  elevation: elevationDown.value,
-                  child: Icon(
-                    icon,
-                    size: 100,
-                  ),
+                  elevation: elevation.value,
+                  child: ShaderMask(
+                      blendMode: BlendMode.srcIn,
+                      shaderCallback: (Rect bounds) {
+                        return ui.Gradient.linear(
+                          Offset(4.0, 24.0),
+                          Offset(24.0, 4.0),
+                          [
+                            (controller.value < 0.5)
+                                ? eyeColorBBL.value
+                                : eyeColorABL.value,
+                            (controller.value < 0.5)
+                                ? eyeColorBUR.value
+                                : eyeColorAUR.value,
+                          ],
+                        );
+                      },
+                      child: Icon(
+                        iconVisible,
+                        size: controller.value < 0.5 ? size.value : 80.0,
+                      )),
                 ),
               );
             },
@@ -80,30 +107,109 @@ class _MyHomePageState extends State<MyHomePage>
     ]);
   }
 
-  Future<void> elevateDown() async {
-    await controller.animateBack(0.0);
-    await controller.forward(from: 0.7);
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: _buildAnimation,
+    );
+  }
+}
+
+class WelcomeScreen extends StatefulWidget {
+  WelcomeScreen({Key key}) : super(key: key);
+
+  @override
+  _WelcomeScreenState createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with SingleTickerProviderStateMixin<WelcomeScreen> {
+
+  AnimationController controller;
+
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+        home: Scaffold(
+          body: Stack(children: [
+            AnimatedBuilder(
+          animation: controller,
+          builder: (context, child) {
+            return Column(children: <Widget>[
+              Expanded(
+                child: SizedBox(),
+              ),
+              SizedBox(
+                child: Container(
+                    decoration: BoxDecoration(
+                  border:
+                      Border.all(width: 1.2, color: mouthBordersColor.value),
+                )),
+                height: MediaQuery.of(context).size.height * mouth.value,
+              ),
+              Expanded(
+                child: SizedBox(),
+              )
+            ]);
+          }),
+      Center(
+        child: GestureDetector(
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (context, child) {
+              return Transform(
+                alignment: FractionalOffset.center,
+                transform: Matrix4.rotationY(flip.value),
+                child: Material(
+                  shape: CircleBorder(),
+                  color: Colors.blueAccent[300],
+                  shadowColor: Colors.black,
+                  elevation: elevation.value,
+                  child: ShaderMask(
+                      blendMode: BlendMode.srcIn,
+                      shaderCallback: (Rect bounds) {
+                        return ui.Gradient.linear(
+                          Offset(4.0, 24.0),
+                          Offset(24.0, 4.0),
+                          [
+                            (controller.value < 0.5)
+                                ? eyeColorBBL.value
+                                : eyeColorABL.value,
+                            (controller.value < 0.5)
+                                ? eyeColorBUR.value
+                                : eyeColorAUR.value,
+                          ],
+                        );
+                      },
+                      child: Icon(
+                        iconVisible,
+                        size: controller.value < 0.5 ? size.value : 80.0,
+                      )),
+                ),
+              );
+            },
+          ),
+          onTap: () {
+            controller.forward();
+          },
+        ),
+      ),
+    ]);
   }
 
+  // Reverse animation back to start and jump to elevation
+  Future<void> reverseAndElevateDown() async {
+    await controller.animateBack(0.0);
+    await controller.forward(from: 0.5);
+  }
+
+  // Initialize controller and addListener to it
   @override
   void initState() {
     super.initState();
-    controller =
-        AnimationController(duration: Duration(seconds: 6), vsync: this);
-
-    flipStart = Tween(begin: 0.0, end: 2 * pi).animate(CurvedAnimation(
-        parent: controller, curve: Interval(0.0, 0.4, curve: Curves.bounceIn)))
-      ..addListener(() {
-        if (controller.value >= 0.4 && controller.value < 0.5) {
-          elevateDown();
-        }
-        if (controller.value >= 0.6) {
-          scaleSize = 0;
-        } else
-          scaleSize = flipStart.value;
-      });
-    elevationDown = Tween(begin: 15.0, end: 0.0).animate(CurvedAnimation(
-        parent: controller, curve: Interval(0.7, 1, curve: Curves.ease)));
+    controller = AnimationController(duration: Duration(seconds: 6), vsync: this)..addListener(() {if (controller.value >= 0.4 && controller.value < 0.5) {reverseAndElevateDown();}});
   }
 
   // Dispose controller to prevent resources overuse
